@@ -13,6 +13,22 @@ func Add() Instruction {
 	return Instruction{ Opcode: OP_ADD }
 }
 
+func Mul() Instruction {
+	return Instruction{ Opcode: OP_MUL }
+}
+
+func And() Instruction {
+	return Instruction{ Opcode: OP_AND }
+}
+
+func Or() Instruction {
+	return Instruction{ Opcode: OP_OR }
+}
+
+func Not() Instruction {
+	return Instruction{ Opcode: OP_NOT }
+}
+
 func Push1(literal int) Instruction {
 	return Instruction{
 		Opcode: OP_PUSH,

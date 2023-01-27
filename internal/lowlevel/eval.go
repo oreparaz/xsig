@@ -1,6 +1,7 @@
 package lowlevel
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 )
 
@@ -18,6 +19,10 @@ func NewEval() *Eval {
 	e := &Eval{}
 	e.Dictionary = []Word{
 		{OP_ADD, e.add},
+		{OP_MUL, e.mul},
+		{OP_AND, e.and},
+		{OP_OR, e.or},
+		{OP_NOT, e.not},
 	}
 	return e
 }
@@ -55,6 +60,8 @@ func (e *Eval) EvalWithXmsg(code []byte, xmsg []byte) error {
 			}
 			pc = pc + 2 + howMany
 			goto end
+		default:
+			return errors.New(fmt.Sprintf("unknown opcode %v", opcode))
 		}
 
 	next:
