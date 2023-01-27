@@ -60,6 +60,12 @@ func (e *Eval) EvalWithXmsg(code []byte, xmsg []byte) error {
 			}
 			pc = pc + 2 + howMany
 			goto end
+		case OP_SIGVERIFY:
+			err := e.sigverify(xmsg)
+			if err != nil {
+				return err
+			}
+			goto next
 		default:
 			return errors.New(fmt.Sprintf("unknown opcode %v", opcode))
 		}
