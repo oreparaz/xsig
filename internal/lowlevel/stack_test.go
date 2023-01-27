@@ -1,6 +1,7 @@
 package lowlevel
 
 import (
+	"github.com/oreparaz/xsig/internal/crypto"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -29,3 +30,37 @@ func TestStack_1(t *testing.T) {
 	_, err = s.Pop()
 	assert.NotNil(t, err)
 }
+
+func reverse(s []byte) []byte {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
+}
+
+func TestStack_PopPublicKey(t *testing.T) {
+	msg := []byte("hello, world")
+	_, pk, _ := crypto.HelperVerifyData(msg)
+
+	s := Stack{}
+	s.PushBytes([]byte("garbage"))
+	s.PushBytes(reverse(pk))
+	pkRead, err := s.PopPublicKey()
+	assert.Nil(t, err)
+	assert.Equal(t, pk, reverse(pkRead))
+}
+
+func TestStack_PopSignature(t *testing.T) {
+	msg := []byte("hello, world")
+	_, _, sig := crypto.HelperVerifyData(msg)
+
+	s := Stack{}
+	s.PushBytes([]byte("garbage"))
+	s.PushBytes(reverse(sig))
+	sigRead, err := s.PopSignature()
+	assert.Nil(t, err)
+	assert.Equal(t, sig, reverse(sigRead))
+}
+
+// TODO: test malformed public keys
+// TODO: test malformed signatures
