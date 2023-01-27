@@ -70,3 +70,49 @@ func (e *Eval) sigverify(xmsg []byte) error {
 	}
 	return nil
 }
+
+func (e *Eval) multisigverify(xmsg []byte) error {
+	// N1: number of public keys
+	// N2: number of min signatures required valid
+	// N1 public keys
+	// N2 signatures
+	nPublicKeys, err := e.Stack.Pop()
+	nMinValid, err := e.Stack.Pop()
+
+	// TODO: check nPublicKeys >= nMinValid, check 0, etc
+
+	pk := make([][]byte, nPublicKeys)
+	for i:=0; i < int(nPublicKeys); i++ {
+		pk[i], err = e.Stack.PopPublicKey()
+		if err != nil {
+			return errors.Wrapf(err, "PopPublicKey")
+		}
+	}
+
+	sigs := make([][]byte, nMinValid)
+	for i:=0; i < int(nMinValid); i++ {
+		sigs[i], err = e.Stack.PopSignature()
+		if err != nil {
+			return errors.Wrapf(err, "PopSignature")
+		}
+	}
+
+	countValid := 0
+OUTER:
+	for i:=0; i < int(nPublicKeys); i++ {
+		for j:=0; j < int(nMinValid); j++ {
+			if crypto.VerifySignature(xmsg, pk[i], sigs[j]) {
+				countValid++
+				continue OUTER
+			}
+		}
+	}
+
+	if countValid >= int(nMinValid) {
+		e.Stack.Push(1)
+	} else {
+		e.Stack.Push(0)
+	}
+
+	return nil
+}

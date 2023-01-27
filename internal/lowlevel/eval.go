@@ -66,6 +66,12 @@ func (e *Eval) EvalWithXmsg(code []byte, xmsg []byte) error {
 				return err
 			}
 			goto next
+		case OP_MULTISIGVERIFY:
+			err := e.multisigverify(xmsg)
+			if err != nil {
+				return err
+			}
+			goto next
 		default:
 			return errors.New(fmt.Sprintf("unknown opcode %v", opcode))
 		}

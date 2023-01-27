@@ -47,6 +47,10 @@ func SignatureVerify() Instruction {
 	return Instruction{ Opcode: OP_SIGVERIFY }
 }
 
+func MultisigVerify() Instruction {
+	return Instruction{ Opcode: OP_MULTISIGVERIFY }
+}
+
 func (a *Assembler) Append(in Instruction) {
 	a.Code = append(a.Code, in.Opcode)
 	if in.Opcode == OP_PUSH {
