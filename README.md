@@ -17,6 +17,16 @@
 
 Using **xsig** saves you from writing the scary code that does policy enforcement and at the same time gives you a way to express / update / change policy conditions.
 
+## Usage
+
+The file [cmd/demo/demo.go](cmd/demo/demo.go) provides an end-to-end example of how to use this. Example output:
+```
+$ ./demo
+2023/01/26 23:38:37 xpublickey: 0341c1537e2db0d543172e5057ad197d437cb0342997627066cf5fadb3e82e8dbc0031e1ffba2077f93c025132b577912aa6e22e201111597c164cf97241409e21ab040341c50205dea257248b617c1f1ca0d26385d0abff3a4a2ee97fcb79c587875b1ab4289cbedbd70095e1e88295d2e2f5f505ee53c4bd87ac99a53cf2a0b069a75361040341c2c004f2f9e217e9caef1dd1412a1dba520e1cd5fb021bdb134f58925d411faaa000a4ae7217ce326dfc9a475fb94d25282c98aeb73d591e4e229013b1a6cdf60403010203010305
+2023/01/26 23:38:37 xsignature: 03485d2c7ca33bbde15fb490323e6469adc689d48dea81392b4706c2036b8c8b4bc2002102a2fe38b2bc01dce0ac913a9fafef3a748d042fcfaeeb6f1264f5cc13b330e38e002102463003478ed6588fd2a475b0de464cae8490e2dbaf5a7681544a93265c931ff3d956e7d5002102f3d5e480fcd8c13d740913fdb5ff2552180e1f45fa997904f042b23a2dde1c7120024530
+2023/01/26 23:38:37 validates correctly
+```
+
 ## Interface
 
 The current version of **xsig** basically implements the following function:

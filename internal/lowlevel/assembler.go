@@ -47,6 +47,7 @@ func SignatureVerify() Instruction {
 	return Instruction{ Opcode: OP_SIGVERIFY }
 }
 
+// TODO: make this more ergonomic and include as argument the M/N parameters
 func MultisigVerify() Instruction {
 	return Instruction{ Opcode: OP_MULTISIGVERIFY }
 }
