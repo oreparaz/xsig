@@ -19,6 +19,16 @@ func (s *Stack) Push(x uint8) error {
 	return nil
 }
 
+func (s *Stack) PushBytes(buf []byte) error {
+	for _, x := range buf {
+		err := s.Push(x)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Stack) Pop() (uint8, error) {
 	if s.IsEmpty() {
 		return 0, errors.New("stack underflow")
