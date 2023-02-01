@@ -27,6 +27,11 @@ $ ./demo
 2023/01/26 23:38:37 validates correctly
 ```
 
+This example generates 3 ECDSA public/private keys and does the following things:
+* generate an eXtended public key `xpublickey` that encodes the following meaning: "signature is valid if 2-of-3 signatures are valid from the following list of 3 public keys: pk1, pk2, pk3"
+* generate an eXtended signature `xsignature` that packs two signatures and validates the previous `xpublickey`
+
+
 ## Interface
 
 The current version of **xsig** basically implements the following function:
@@ -64,7 +69,7 @@ Written by a single person with zero peer review.
 ## Future work
 
 - [ ] C interpreter
-- [ ] Multisignatures
+- [X] Multisignatures
 - [ ] miniscript-like compiler
 - [ ] semi-formal security argument / security verification
 - [ ] delegation certs
