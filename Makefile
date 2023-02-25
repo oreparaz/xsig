@@ -1,4 +1,7 @@
-all: build-all
+all: test build-all
+
+test:
+	go test -v ./...
 
 build-all:
 	mkdir -p build

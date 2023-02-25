@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	ll "github.com/oreparaz/xsig/internal/lowlevel"
+	machines "github.com/oreparaz/xsig/internal/machine"
 	"github.com/oreparaz/xsig/pkg"
 	"log"
 	"os"
@@ -72,14 +73,14 @@ func main() {
 	pk3Bytes := elliptic.Marshal(pub3.Curve, pub3.X, pub3.Y)
 
 	// part 2: create the lock script / xPublickey for a 2-of-3 multisig
-	xPublicKey := ll.Assembler{}
+	xPublicKey := machines.MachineCode{}
 	xPublicKey.Append(ll.Push(pk1Bytes))
 	xPublicKey.Append(ll.Push(pk2Bytes))
 	xPublicKey.Append(ll.Push(pk3Bytes))
 	xPublicKey.Append(ll.Push1(2))
 	xPublicKey.Append(ll.Push1(3))
 	xPublicKey.Append(ll.MultisigVerify())
-	xPublicKeyCode := xPublicKey.Code
+	xPublicKeyCode := xPublicKey.Serialize(machines.CodeTypeXPublicKey)
 
 	log.Printf("xpublickey: %x\n", xPublicKeyCode)
 
@@ -91,12 +92,12 @@ func main() {
 	sig3, err := ecdsa.SignASN1(rand.Reader, priv3, hash[:]); check(err)
 
 	// part 4: craft the unlock script / xSignature
-	a := ll.Assembler{}
-	a.Append(ll.Push(sig1))
-	a.Append(ll.Push(sig2))
+	xsig := machines.MachineCode{}
+	xsig.Append(ll.Push(sig1))
+	xsig.Append(ll.Push(sig2))
 	_ = sig3
 
-	xSignatureCode := a.Code
+	xSignatureCode := xsig.Serialize(machines.CodeTypeXSig)
 
 	log.Printf("xsignature: %x\n", xSignatureCode)
 
