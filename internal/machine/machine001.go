@@ -7,10 +7,14 @@ import (
 )
 
 func RunMachine001(XpPubKey []byte, XpSig []byte, XpMsg []byte) bool {
-	// TODO: bind opcodes to machine variant
-	// TODO: introduce a marker for a XpPubKey script and XpSig script
+	mc := MachineCode{}
+	err := mc.Deserialize(XpSig, CodeTypeXSig)
+	if err != nil {
+		log.Println("Deserialize", err)
+		return false
+	}
 	e := lowlevel.NewEval()
-	err := e.Eval(XpSig)
+	err = e.Eval(mc.Code)
 	if err != nil {
 		log.Println("Eval part 1", err)
 		return false
@@ -20,7 +24,12 @@ func RunMachine001(XpPubKey []byte, XpSig []byte, XpMsg []byte) bool {
 	e = lowlevel.NewEval()
 	e.Stack.S = intermediateStack
 
-	err = e.EvalWithXmsg(XpPubKey, XpMsg)
+	err = mc.Deserialize(XpPubKey, CodeTypeXPublicKey)
+	if err != nil {
+		log.Println("Deserialize:", err)
+		return false
+	}
+	err = e.EvalWithXmsg(mc.Code, XpMsg)
 	if err != nil {
 		log.Println("Eval part 2", err)
 		return false

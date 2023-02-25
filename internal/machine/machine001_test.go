@@ -11,28 +11,28 @@ func TestRunMachine001(t *testing.T) {
 	msg := []byte("yolo")
 	_, publicKeyBytes, sig := crypto.HelperVerifyData(msg)
 
-	a := ll.Assembler{}
+	a := MachineCode{}
 	a.Append(ll.Push(sig))
 
-	xSig := a.Code
+	xSig := a.Serialize(CodeTypeXSig)
 
-	b := ll.Assembler{}
+	b := MachineCode{}
 	b.Append(ll.Push(publicKeyBytes))
 	b.Append(ll.SignatureVerify())
 
-	xPubKey := b.Code
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
 
 	assert.True(t, RunMachine001(xPubKey, xSig, msg))
 }
 
 func helperTestMultisignature(msg, pk1, pk2, pk3, sig1, sig2 []byte) bool {
-	a := ll.Assembler{}
+	a := MachineCode{}
 	a.Append(ll.Push(sig1))
 	a.Append(ll.Push(sig2))
 
-	xSig := a.Code
+	xSig := a.Serialize(CodeTypeXSig)
 
-	b := ll.Assembler{}
+	b := MachineCode{}
 	b.Append(ll.Push(pk1))
 	b.Append(ll.Push(pk2))
 	b.Append(ll.Push(pk3))
@@ -41,7 +41,7 @@ func helperTestMultisignature(msg, pk1, pk2, pk3, sig1, sig2 []byte) bool {
 
 	b.Append(ll.MultisigVerify())
 
-	xPubKey := b.Code
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
 
 	return RunMachine001(xPubKey, xSig, msg)
 }
