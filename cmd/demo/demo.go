@@ -68,9 +68,9 @@ func main() {
 	err  = os.WriteFile("public2.pem", pub2_s, 0644); check(err)
 	err  = os.WriteFile("public3.pem", pub3_s, 0644); check(err)
 
-	pk1Bytes := elliptic.Marshal(pub1.Curve, pub1.X, pub1.Y)
-	pk2Bytes := elliptic.Marshal(pub2.Curve, pub2.X, pub2.Y)
-	pk3Bytes := elliptic.Marshal(pub3.Curve, pub3.X, pub3.Y)
+	pk1Bytes := elliptic.MarshalCompressed(pub1.Curve, pub1.X, pub1.Y)
+	pk2Bytes := elliptic.MarshalCompressed(pub2.Curve, pub2.X, pub2.Y)
+	pk3Bytes := elliptic.MarshalCompressed(pub3.Curve, pub3.X, pub3.Y)
 
 	// part 2: create the lock script / xPublickey for a 2-of-3 multisig
 	xPublicKey := machines.MachineCode{}

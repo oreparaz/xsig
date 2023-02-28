@@ -56,7 +56,7 @@ func (s *Stack) Pop2() (uint8, uint8, error) {
 // 04 || X || Y where X and Y are 32 bytes.
 // This function performs no point validation, and does *not* fully implement 2.3.4
 // (OctetString-to-EllipticCurvePoint) from https://www.secg.org/SEC1-Ver-1.0.pdf
-func (s *Stack) PopPublicKey() ([]byte, error) {
+func (s *Stack) PopPublicKeyUncompressed() ([]byte, error) {
 	var publicKey []byte
 	for i:=0; i<65; i++ {
 		val, err := s.Pop()
@@ -64,6 +64,23 @@ func (s *Stack) PopPublicKey() ([]byte, error) {
 		publicKey = append(publicKey, val)
 	}
 	if publicKey[0] != 0x04 {
+		return nil, errors.New("unknown public key format")
+	}
+	return publicKey, nil
+}
+
+// PopPublicKey pops a NIST-P256 (aka secp256r1) public key from the stack.
+// We assume they are encoded according to ANSI X9.63, compressed:
+// {02,03} || X where X is 32 bytes and the first byte defines the sign of Y
+// This function performs no point validation
+func (s *Stack) PopPublicKeyCompressed() ([]byte, error) {
+	var publicKey []byte
+	for i:=0; i<33; i++ {
+		val, err := s.Pop()
+		if err != nil { return nil, errors.Wrapf(err, "PopPublicKey")}
+		publicKey = append(publicKey, val)
+	}
+	if publicKey[0] != 0x02 && publicKey[0] != 0x03 {
 		return nil, errors.New("unknown public key format")
 	}
 	return publicKey, nil

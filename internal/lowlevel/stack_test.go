@@ -45,7 +45,7 @@ func TestStack_PopPublicKey(t *testing.T) {
 	s := Stack{}
 	s.PushBytes([]byte("garbage"))
 	s.PushBytes(reverse(pk))
-	pkRead, err := s.PopPublicKey()
+	pkRead, err := s.PopPublicKeyCompressed()
 	assert.Nil(t, err)
 	assert.Equal(t, pk, reverse(pkRead))
 }

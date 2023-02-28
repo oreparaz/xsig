@@ -18,7 +18,7 @@ func HelperVerifyData(msg []byte) (privateKey *ecdsa.PrivateKey, publicKeyBytes 
 
 	pk := privateKey.PublicKey
 	// 65 bytes always
-	publicKeyBytes = elliptic.Marshal(pk.Curve, pk.X, pk.Y)
+	publicKeyBytes = elliptic.MarshalCompressed(pk.Curve, pk.X, pk.Y)
 
 	return privateKey, publicKeyBytes, sig
 }
