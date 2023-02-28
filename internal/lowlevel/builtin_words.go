@@ -51,7 +51,7 @@ func (e *Eval) not() error {
 }
 
 func (e *Eval) sigverify(xmsg []byte) error {
-	publicKey, err := e.Stack.PopPublicKey()
+	publicKey, err := e.Stack.PopPublicKeyCompressed()
 	if err != nil {
 		return errors.Wrapf(err, "PopPublicKey")
 	}
@@ -83,7 +83,7 @@ func (e *Eval) multisigverify(xmsg []byte) error {
 
 	pk := make([][]byte, nPublicKeys)
 	for i:=0; i < int(nPublicKeys); i++ {
-		pk[i], err = e.Stack.PopPublicKey()
+		pk[i], err = e.Stack.PopPublicKeyCompressed()
 		if err != nil {
 			return errors.Wrapf(err, "PopPublicKey")
 		}
