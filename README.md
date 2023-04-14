@@ -58,6 +58,36 @@ This is the order of execution for the function above:
 
 To reason about correctness, consider `xsignature` completely untrusted and `xpublickey` trusted. Then, convince yourself there's no way to trick `xpublickey` to return a `[1]` other than by using the legitimate `xsignature`.
 
+This machine that evaluates `xsignature` and `xpublickey` is very simple:
+* Stack-oriented, not Turing-complete. Running time is bounded, every program is guaranteed to halt.
+* The program counter increases every cycle by 1. There are no jump instructions, flow is always straight line.
+* The program memory is different from the stack memory. There is no way to modify the program memory after initialization.
+* The layout of the data stack is normally fixed before execution. Access beyond stack contents trip error handling.
+
+
+Available opcodes:
+
+
+![alt](doc/xsig.svg)
+
+
+## Available opcodes in Machine001
+
+### Logic/Arithmetic
+
+* `OP_ADD`: pop two 8-bit words from the stack, sum them and push the result back into the stack
+* `OP_MUL`: idem
+* `OP_AND`: idem
+* `OP_OR`: idem
+* `OP_NOT`: pop a 8-bit word from the stack, bitwise negate it, push the result back
+
+### Data I/O
+* `OP_PUSH <N> <X1> <X2> .. <XN>`: push `N` 8-bit words `X1 .. XN` into the stack, where `N` is the 8-bit word after `OP_PUSH`.
+
+### Crypto
+* `OP_SIGVERIFY`: pops a compressed public key from the stack, pops an ECDSA signature, push a 1 if signature validates, 0 otherwise.
+* `OP_MULTISIGVERIFY`: pops 8-bit parameter N1, pops 8-bit parameter N2, pops N1 public keys, pops N2 signatures, validate the N2 signatures are valid under N2 different public keys, push a 1 if success, 0 otherwise.
+
 
 **Other machines**. A future machine could introduce some minimal I/O mechanisms to run interactive protocols (think challenge-response for FA unlock, or absolute time synchronization, etc).
 
