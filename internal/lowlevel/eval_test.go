@@ -62,6 +62,20 @@ func TestEval_MultisigverifyEmptyStackShouldFail(t *testing.T) {
 	assert.NotNil(t, err, "multisigverify on empty stack should error, not silently succeed")
 }
 
+func TestEval_PushTruncatedLength(t *testing.T) {
+	code := []byte{OP_PUSH}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err, "OP_PUSH without length byte should fail")
+}
+
+func TestEval_PushTruncatedOperand(t *testing.T) {
+	code := []byte{OP_PUSH, byte(5), byte(1), byte(2)}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err, "OP_PUSH with fewer bytes than length should fail")
+}
+
 func TestEval_Push(t *testing.T) {
 	a := Assembler{}
 	a.Append(Push([]byte{byte(4), byte(5)}))
