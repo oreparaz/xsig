@@ -28,3 +28,28 @@ func TestAssembler_Small2(t *testing.T) {
 
 	assert.Equal(t, a.Code, code)
 }
+
+func TestAssembler_AllConstructors(t *testing.T) {
+	// Exercise And, Or, Not, MultisigVerify, SignatureVerify constructors
+	assert.Equal(t, OP_AND, And().Opcode)
+	assert.Equal(t, OP_OR, Or().Opcode)
+	assert.Equal(t, OP_NOT, Not().Opcode)
+	assert.Equal(t, OP_MULTISIGVERIFY, MultisigVerify().Opcode)
+	assert.Equal(t, OP_SIGVERIFY, SignatureVerify().Opcode)
+
+	// Verify they produce correct bytecode through Append
+	a := Assembler{}
+	a.Append(And())
+	a.Append(Or())
+	a.Append(Not())
+	a.Append(MultisigVerify())
+	expected := []byte{OP_AND, OP_OR, OP_NOT, OP_MULTISIGVERIFY}
+	assert.Equal(t, expected, a.Code)
+}
+
+func TestAssembler_AppendNonPushReturnsNil(t *testing.T) {
+	a := Assembler{}
+	assert.Nil(t, a.Append(Add()))
+	assert.Nil(t, a.Append(And()))
+	assert.Nil(t, a.Append(SignatureVerify()))
+}

@@ -124,9 +124,55 @@ func TestStack_PopSignatureUnderflow(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestStack_PopPublicKeyUncompressedSuccess(t *testing.T) {
+	s := Stack{}
+	key := make([]byte, 65)
+	key[0] = 0x04
+	for i := 1; i < 65; i++ {
+		key[i] = byte(i)
+	}
+	s.PushBytes(reverse(key))
+	pkRead, err := s.PopPublicKeyUncompressed()
+	assert.Nil(t, err)
+	assert.Equal(t, byte(0x04), pkRead[0])
+}
+
+func TestStack_PopPublicKeyUncompressedUnderflow(t *testing.T) {
+	s := Stack{}
+	s.Push(0x04) // only 1 byte, need 65
+	_, err := s.PopPublicKeyUncompressed()
+	assert.NotNil(t, err)
+}
+
+func TestStack_PopSignatureBodyUnderflow(t *testing.T) {
+	// Push valid marker 0x30 and length=10, but only 3 body bytes
+	s := Stack{}
+	s.Push(0x01)
+	s.Push(0x02)
+	s.Push(0x03)
+	s.Push(10) // sigLen = 10 but only 3 body bytes available
+	s.Push(0x30)
+	_, err := s.PopSignature()
+	assert.NotNil(t, err, "PopSignature should fail when body is shorter than declared length")
+}
+
+func TestStack_PopSignatureLenUnderflow(t *testing.T) {
+	// Push valid marker 0x30 but nothing after it
+	s := Stack{}
+	s.Push(0x30)
+	_, err := s.PopSignature()
+	assert.NotNil(t, err, "PopSignature should fail when length byte is missing")
+}
+
 func TestStack_Pop2Underflow(t *testing.T) {
 	s := Stack{}
 	s.Push(1)
 	_, _, err := s.Pop2()
 	assert.NotNil(t, err, "Pop2 with only 1 element should fail")
+}
+
+func TestStack_Pop2CompletelyEmpty(t *testing.T) {
+	s := Stack{}
+	_, _, err := s.Pop2()
+	assert.NotNil(t, err, "Pop2 on empty stack should fail")
 }
