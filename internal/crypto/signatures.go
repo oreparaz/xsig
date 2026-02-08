@@ -8,7 +8,10 @@ import (
 
 func VerifySignature(msg []byte, publicKeyBytes []byte, sig []byte) bool {
 	hash := sha256.Sum256([]byte(msg))
-	x,y :=  elliptic.UnmarshalCompressed(elliptic.P256(), publicKeyBytes)
+	x, y := elliptic.UnmarshalCompressed(elliptic.P256(), publicKeyBytes)
+	if x == nil {
+		return false
+	}
 	pku := ecdsa.PublicKey{
 		Curve: elliptic.P256(),
 		X:     x,

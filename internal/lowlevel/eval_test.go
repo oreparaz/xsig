@@ -1,6 +1,7 @@
 package lowlevel
 
 import (
+	"github.com/oreparaz/xsig/internal/crypto"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -112,4 +113,79 @@ func TestEval_Push(t *testing.T) {
 	assert.Nil(t, err)
 	expectedStack := []byte{byte(5), byte(4), byte(6)}
 	assert.Equal(t, e.Stack.S, expectedStack)
+}
+
+func TestEval_PushZeroLength(t *testing.T) {
+	code := []byte{OP_PUSH, 0}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.Nil(t, err)
+	assert.True(t, e.Stack.IsEmpty())
+}
+
+func TestEval_EmptyProgram(t *testing.T) {
+	e := NewEval()
+	err := e.Eval([]byte{})
+	assert.Nil(t, err)
+	assert.True(t, e.Stack.IsEmpty())
+}
+
+func TestEval_UnknownOpcode(t *testing.T) {
+	code := []byte{0xFF}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "unknown opcode")
+}
+
+func TestEval_SigverifyWrongMessage(t *testing.T) {
+	msg := []byte("hello")
+	_, pk, sig := crypto.HelperVerifyData(msg)
+
+	a := Assembler{}
+	a.Append(Push(sig))
+	a.Append(Push(pk))
+	a.Append(SignatureVerify())
+
+	e := NewEval()
+	err := e.EvalWithXmsg(a.Code, []byte("wrong message"))
+	assert.Nil(t, err, "sigverify with wrong message should not error, just push 0")
+	assert.Equal(t, []byte{0}, e.Stack.S, "sigverify with wrong message should push 0")
+}
+
+func TestEval_SigverifyCorrectMessage(t *testing.T) {
+	msg := []byte("hello")
+	_, pk, sig := crypto.HelperVerifyData(msg)
+
+	a := Assembler{}
+	a.Append(Push(sig))
+	a.Append(Push(pk))
+	a.Append(SignatureVerify())
+
+	e := NewEval()
+	err := e.EvalWithXmsg(a.Code, msg)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{1}, e.Stack.S, "sigverify with correct message should push 1")
+}
+
+func TestEval_SigverifyEmptyStackShouldFail(t *testing.T) {
+	code := []byte{OP_SIGVERIFY}
+	e := NewEval()
+	err := e.EvalWithXmsg(code, []byte("msg"))
+	assert.NotNil(t, err, "sigverify on empty stack should error")
+}
+
+func TestAssembler_PushLengthOverflow(t *testing.T) {
+	data := make([]byte, 256)
+	a := Assembler{}
+	err := a.Append(Push(data))
+	assert.NotNil(t, err, "assembler should reject Push with > 255 bytes")
+	assert.Contains(t, err.Error(), "too large")
+}
+
+func TestAssembler_PushMaxLength(t *testing.T) {
+	data := make([]byte, 255)
+	a := Assembler{}
+	err := a.Append(Push(data))
+	assert.Nil(t, err, "assembler should accept Push with exactly 255 bytes")
 }
