@@ -1,7 +1,6 @@
 package lowlevel
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 )
 
@@ -78,7 +77,7 @@ func (e *Eval) EvalWithXmsg(code []byte, xmsg []byte) error {
 			}
 			goto next
 		default:
-			return errors.New(fmt.Sprintf("unknown opcode %v", opcode))
+			return errors.Errorf("unknown opcode %v", opcode)
 		}
 
 	next:

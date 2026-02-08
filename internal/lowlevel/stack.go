@@ -1,7 +1,6 @@
 package lowlevel
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 )
 
@@ -119,7 +118,7 @@ func (s *Stack) PopSignature() ([]byte, error) {
 		return nil, errors.Wrapf(err, "underflow")
 	}
 	if marker != 0x30 {
-		return nil, errors.New(fmt.Sprintf("marker %d sig not valid DER encoding", marker))
+		return nil, errors.Errorf("marker %d sig not valid DER encoding", marker)
 	}
 	sig = append(sig, marker)
 
