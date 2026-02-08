@@ -1,5 +1,7 @@
 package lowlevel
 
+import "github.com/pkg/errors"
+
 type Assembler struct {
 	Code []byte
 }
@@ -52,10 +54,12 @@ func MultisigVerify() Instruction {
 	return Instruction{ Opcode: OP_MULTISIGVERIFY }
 }
 
-func (a *Assembler) Append(in Instruction) {
+func (a *Assembler) Append(in Instruction) error {
+	if in.Opcode == OP_PUSH && len(in.Literal) > 255 {
+		return errors.Errorf("OP_PUSH literal too large: %d bytes (max 255)", len(in.Literal))
+	}
 	a.Code = append(a.Code, in.Opcode)
 	if in.Opcode == OP_PUSH {
-		// TODO check this number is sane
 		ll := len(in.Literal)
 		a.Code = append(a.Code, byte(ll))
 
@@ -63,4 +67,5 @@ func (a *Assembler) Append(in Instruction) {
 			a.Code = append(a.Code, in.Literal[ll-i-1])
 		}
 	}
+	return nil
 }

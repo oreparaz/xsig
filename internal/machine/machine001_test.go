@@ -66,3 +66,146 @@ func TestRunMachine2023012_Multisig(t *testing.T) {
 	assert.False(t, helperTestMultisignature(msg, pk1, pk1, pk3, sig2, sig3))
 	assert.False(t, helperTestMultisignature(msg, pk1, pk3, pk3, sig1, sig2))
 }
+
+func TestRunMachine001_WrongMessage(t *testing.T) {
+	msg := []byte("correct")
+	_, pk, sig := crypto.HelperVerifyData(msg)
+
+	a := MachineCode{}
+	a.Append(ll.Push(sig))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push(pk))
+	b.Append(ll.SignatureVerify())
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001(xPubKey, xSig, []byte("wrong")),
+		"signature verified against wrong message should fail")
+}
+
+func TestRunMachine001_1of1Multisig(t *testing.T) {
+	msg := []byte("test")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+
+	a := MachineCode{}
+	a.Append(ll.Push(sig1))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push(pk1))
+	b.Append(ll.Push1(1))
+	b.Append(ll.Push1(1))
+	b.Append(ll.MultisigVerify())
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.True(t, RunMachine001(xPubKey, xSig, msg))
+}
+
+func TestRunMachine001_3of3Multisig(t *testing.T) {
+	msg := []byte("test")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+	_, pk2, sig2 := crypto.HelperVerifyData(msg)
+	_, pk3, sig3 := crypto.HelperVerifyData(msg)
+
+	a := MachineCode{}
+	a.Append(ll.Push(sig1))
+	a.Append(ll.Push(sig2))
+	a.Append(ll.Push(sig3))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push(pk1))
+	b.Append(ll.Push(pk2))
+	b.Append(ll.Push(pk3))
+	b.Append(ll.Push1(3))
+	b.Append(ll.Push1(3))
+	b.Append(ll.MultisigVerify())
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.True(t, RunMachine001(xPubKey, xSig, msg),
+		"3-of-3 multisig with all valid signatures should pass")
+}
+
+func TestRunMachine001_3of3MultisigMissingSig(t *testing.T) {
+	msg := []byte("test")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+	_, pk2, sig2 := crypto.HelperVerifyData(msg)
+	_, pk3, _ := crypto.HelperVerifyData(msg)
+
+	// only provide 2 of 3 required sigs (repeat sig1 for the third)
+	a := MachineCode{}
+	a.Append(ll.Push(sig1))
+	a.Append(ll.Push(sig2))
+	a.Append(ll.Push(sig1))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push(pk1))
+	b.Append(ll.Push(pk2))
+	b.Append(ll.Push(pk3))
+	b.Append(ll.Push1(3))
+	b.Append(ll.Push1(3))
+	b.Append(ll.MultisigVerify())
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001(xPubKey, xSig, msg),
+		"3-of-3 with only 2 distinct valid signers should fail")
+}
+
+func TestRunMachine001_DuplicateSigsDistinctKeys(t *testing.T) {
+	// Same signature provided twice with distinct keys — should NOT satisfy 2-of-3
+	msg := []byte("test")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+	_, pk2, _ := crypto.HelperVerifyData(msg)
+	_, pk3, _ := crypto.HelperVerifyData(msg)
+
+	a := MachineCode{}
+	a.Append(ll.Push(sig1))
+	a.Append(ll.Push(sig1)) // duplicate signature
+	xSig := a.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push(pk1))
+	b.Append(ll.Push(pk2))
+	b.Append(ll.Push(pk3))
+	b.Append(ll.Push1(2))
+	b.Append(ll.Push1(3))
+	b.Append(ll.MultisigVerify())
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001(xPubKey, xSig, msg),
+		"duplicate signatures from same signer should not satisfy quorum")
+}
+
+func TestRunMachine001_MultisigWrongMessage(t *testing.T) {
+	msg := []byte("correct")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+	_, pk2, sig2 := crypto.HelperVerifyData(msg)
+	_, pk3, _ := crypto.HelperVerifyData(msg)
+
+	a := MachineCode{}
+	a.Append(ll.Push(sig1))
+	a.Append(ll.Push(sig2))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push(pk1))
+	b.Append(ll.Push(pk2))
+	b.Append(ll.Push(pk3))
+	b.Append(ll.Push1(2))
+	b.Append(ll.Push1(3))
+	b.Append(ll.MultisigVerify())
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001(xPubKey, xSig, []byte("wrong")),
+		"multisig against wrong message should fail")
+}
+
+func TestRunMachine001_EmptyXSig(t *testing.T) {
+	assert.False(t, RunMachine001([]byte{}, []byte{}, []byte("msg")))
+}
+
+func TestRunMachine001_GarbagePrefix(t *testing.T) {
+	assert.False(t, RunMachine001([]byte("garbage"), []byte("garbage"), []byte("msg")))
+}
