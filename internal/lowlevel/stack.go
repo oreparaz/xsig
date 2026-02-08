@@ -5,6 +5,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const MaxStackSize = 1024
+
 type Stack struct {
 	S []uint8
 }
@@ -14,7 +16,9 @@ func (s *Stack) IsEmpty() bool {
 }
 
 func (s *Stack) Push(x uint8) error {
-	// TODO implement max size check
+	if len(s.S) >= MaxStackSize {
+		return errors.New("stack overflow")
+	}
 	s.S = append(s.S, x)
 	return nil
 }
