@@ -55,6 +55,13 @@ func TestEval_Not(t *testing.T) {
 	assert.Equal(t, e.Stack.S, expectedStack)
 }
 
+func TestEval_MultisigverifyEmptyStackShouldFail(t *testing.T) {
+	code := []byte{OP_MULTISIGVERIFY}
+	e := NewEval()
+	err := e.EvalWithXmsg(code, []byte("msg"))
+	assert.NotNil(t, err, "multisigverify on empty stack should error, not silently succeed")
+}
+
 func TestEval_Push(t *testing.T) {
 	a := Assembler{}
 	a.Append(Push([]byte{byte(4), byte(5)}))

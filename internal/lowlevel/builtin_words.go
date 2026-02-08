@@ -77,7 +77,13 @@ func (e *Eval) multisigverify(xmsg []byte) error {
 	// N1 public keys
 	// N2 signatures
 	nPublicKeys, err := e.Stack.Pop()
+	if err != nil {
+		return errors.Wrapf(err, "multisigverify")
+	}
 	nMinValid, err := e.Stack.Pop()
+	if err != nil {
+		return errors.Wrapf(err, "multisigverify")
+	}
 
 	// TODO: check nPublicKeys >= nMinValid, check 0, etc
 
