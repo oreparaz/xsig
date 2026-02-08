@@ -62,5 +62,24 @@ func TestStack_PopSignature(t *testing.T) {
 	assert.Equal(t, sig, reverse(sigRead))
 }
 
+func TestStack_Overflow(t *testing.T) {
+	s := Stack{}
+	for i := 0; i < MaxStackSize; i++ {
+		err := s.Push(1)
+		assert.Nil(t, err)
+	}
+	err := s.Push(1)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "stack overflow")
+}
+
+func TestStack_PushBytesOverflow(t *testing.T) {
+	buf := make([]byte, MaxStackSize+1)
+	s := Stack{}
+	err := s.PushBytes(buf)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "stack overflow")
+}
+
 // TODO: test malformed public keys
 // TODO: test malformed signatures
