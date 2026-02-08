@@ -76,6 +76,33 @@ func TestEval_PushTruncatedOperand(t *testing.T) {
 	assert.NotNil(t, err, "OP_PUSH with fewer bytes than length should fail")
 }
 
+func TestEval_MultisigverifyZeroPublicKeys(t *testing.T) {
+	// push nMinValid=1 then nPublicKeys=0
+	code := []byte{OP_PUSH, 1, 1, OP_PUSH, 1, 0, OP_MULTISIGVERIFY}
+	e := NewEval()
+	err := e.EvalWithXmsg(code, []byte("msg"))
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "nPublicKeys must be > 0")
+}
+
+func TestEval_MultisigverifyZeroMinValid(t *testing.T) {
+	// push nMinValid=0 then nPublicKeys=2
+	code := []byte{OP_PUSH, 1, 0, OP_PUSH, 1, 2, OP_MULTISIGVERIFY}
+	e := NewEval()
+	err := e.EvalWithXmsg(code, []byte("msg"))
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "nMinValid must be > 0")
+}
+
+func TestEval_MultisigverifyMinValidGreaterThanPublicKeys(t *testing.T) {
+	// push nMinValid=5 then nPublicKeys=2
+	code := []byte{OP_PUSH, 1, 5, OP_PUSH, 1, 2, OP_MULTISIGVERIFY}
+	e := NewEval()
+	err := e.EvalWithXmsg(code, []byte("msg"))
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "nMinValid (5) > nPublicKeys (2)")
+}
+
 func TestEval_Push(t *testing.T) {
 	a := Assembler{}
 	a.Append(Push([]byte{byte(4), byte(5)}))

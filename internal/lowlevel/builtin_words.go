@@ -85,7 +85,15 @@ func (e *Eval) multisigverify(xmsg []byte) error {
 		return errors.Wrapf(err, "multisigverify")
 	}
 
-	// TODO: check nPublicKeys >= nMinValid, check 0, etc
+	if nPublicKeys == 0 {
+		return errors.New("multisigverify: nPublicKeys must be > 0")
+	}
+	if nMinValid == 0 {
+		return errors.New("multisigverify: nMinValid must be > 0")
+	}
+	if nMinValid > nPublicKeys {
+		return errors.Errorf("multisigverify: nMinValid (%d) > nPublicKeys (%d)", nMinValid, nPublicKeys)
+	}
 
 	pk := make([][]byte, nPublicKeys)
 	for i:=0; i < int(nPublicKeys); i++ {
