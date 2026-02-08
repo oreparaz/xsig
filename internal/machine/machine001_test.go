@@ -209,3 +209,38 @@ func TestRunMachine001_EmptyXSig(t *testing.T) {
 func TestRunMachine001_GarbagePrefix(t *testing.T) {
 	assert.False(t, RunMachine001([]byte("garbage"), []byte("garbage"), []byte("msg")))
 }
+
+func TestRunMachine001_XSigEvalError(t *testing.T) {
+	// Valid xsig prefix but contains an unknown opcode → eval part 1 fails
+	mc := MachineCode{}
+	mc.Code = []byte{0xFF} // unknown opcode
+	xSig := mc.Serialize(CodeTypeXSig)
+
+	b := MachineCode{}
+	b.Append(ll.Push1(1))
+	xPubKey := b.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001(xPubKey, xSig, []byte("msg")))
+}
+
+func TestRunMachine001_XPubKeyBadPrefix(t *testing.T) {
+	// Valid xsig, but xpubkey has wrong prefix
+	a := MachineCode{}
+	a.Append(ll.Push1(1))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	assert.False(t, RunMachine001([]byte("garbage"), xSig, []byte("msg")))
+}
+
+func TestRunMachine001_XPubKeyEvalError(t *testing.T) {
+	// Valid xsig (eval succeeds), valid xpubkey prefix but code has unknown opcode
+	a := MachineCode{}
+	a.Append(ll.Push1(1))
+	xSig := a.Serialize(CodeTypeXSig)
+
+	mc := MachineCode{}
+	mc.Code = []byte{0xFF}
+	xPubKey := mc.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001(xPubKey, xSig, []byte("msg")))
+}

@@ -175,6 +175,140 @@ func TestEval_SigverifyEmptyStackShouldFail(t *testing.T) {
 	assert.NotNil(t, err, "sigverify on empty stack should error")
 }
 
+func TestEval_SigverifyPopSignatureError(t *testing.T) {
+	// Push a valid compressed key but no signature — PopSignature should fail
+	msg := []byte("hello")
+	_, pk, _ := crypto.HelperVerifyData(msg)
+
+	a := Assembler{}
+	a.Append(Push(pk))
+	a.Append(SignatureVerify())
+
+	e := NewEval()
+	err := e.EvalWithXmsg(a.Code, msg)
+	assert.NotNil(t, err, "sigverify with key but no signature should error")
+}
+
+func TestEval_AddEmptyStack(t *testing.T) {
+	code := []byte{OP_ADD}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err, "add on empty stack should error")
+}
+
+func TestEval_MulEmptyStack(t *testing.T) {
+	code := []byte{OP_MUL}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+}
+
+func TestEval_AndEmptyStack(t *testing.T) {
+	code := []byte{OP_AND}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+}
+
+func TestEval_OrEmptyStack(t *testing.T) {
+	code := []byte{OP_OR}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+}
+
+func TestEval_NotEmptyStack(t *testing.T) {
+	code := []byte{OP_NOT}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+}
+
+func TestEval_MultisigverifyFullFlow(t *testing.T) {
+	// Full end-to-end multisigverify at the lowlevel package level
+	msg := []byte("test")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+	_, pk2, sig2 := crypto.HelperVerifyData(msg)
+	_, pk3, _ := crypto.HelperVerifyData(msg)
+
+	// Build program: push sigs, push keys, push params, multisigverify
+	a := Assembler{}
+	a.Append(Push(sig1))
+	a.Append(Push(sig2))
+	a.Append(Push(pk1))
+	a.Append(Push(pk2))
+	a.Append(Push(pk3))
+	a.Append(Push1(2))  // nMinValid
+	a.Append(Push1(3))  // nPublicKeys
+	a.Append(MultisigVerify())
+
+	e := NewEval()
+	err := e.EvalWithXmsg(a.Code, msg)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{1}, e.Stack.S, "2-of-3 multisig with valid sigs should push 1")
+}
+
+func TestEval_MultisigverifyFullFlowFail(t *testing.T) {
+	// multisigverify with wrong message should push 0
+	msg := []byte("test")
+	_, pk1, sig1 := crypto.HelperVerifyData(msg)
+	_, pk2, sig2 := crypto.HelperVerifyData(msg)
+	_, pk3, _ := crypto.HelperVerifyData(msg)
+
+	a := Assembler{}
+	a.Append(Push(sig1))
+	a.Append(Push(sig2))
+	a.Append(Push(pk1))
+	a.Append(Push(pk2))
+	a.Append(Push(pk3))
+	a.Append(Push1(2))
+	a.Append(Push1(3))
+	a.Append(MultisigVerify())
+
+	e := NewEval()
+	err := e.EvalWithXmsg(a.Code, []byte("wrong"))
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{0}, e.Stack.S, "multisig with wrong message should push 0")
+}
+
+func TestEval_MultisigverifyPopKeyError(t *testing.T) {
+	// Valid params but not enough data on stack for keys
+	code := []byte{OP_PUSH, 1, 1, OP_PUSH, 1, 1, OP_MULTISIGVERIFY}
+	e := NewEval()
+	err := e.EvalWithXmsg(code, []byte("msg"))
+	assert.NotNil(t, err, "multisigverify with missing key data should error")
+}
+
+func TestEval_MultisigverifyPopSigError(t *testing.T) {
+	// Push 1 valid key but no signature data — keys pop fine, sig pop fails
+	msg := []byte("test")
+	_, pk1, _ := crypto.HelperVerifyData(msg)
+
+	a := Assembler{}
+	// no signatures pushed
+	a.Append(Push(pk1))
+	a.Append(Push1(1)) // nMinValid
+	a.Append(Push1(1)) // nPublicKeys
+	a.Append(MultisigVerify())
+
+	e := NewEval()
+	err := e.EvalWithXmsg(a.Code, msg)
+	assert.NotNil(t, err, "multisigverify should fail when signature data is missing")
+}
+
+func TestEval_PushStackOverflow(t *testing.T) {
+	// Fill stack close to capacity, then have OP_PUSH overflow it
+	e := NewEval()
+	for i := 0; i < MaxStackSize-1; i++ {
+		e.Stack.Push(0)
+	}
+	// Now push 2 bytes — first succeeds, second overflows
+	code := []byte{OP_PUSH, 2, 0xAA, 0xBB}
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "overflow")
+}
+
 func TestAssembler_PushLengthOverflow(t *testing.T) {
 	data := make([]byte, 256)
 	a := Assembler{}
