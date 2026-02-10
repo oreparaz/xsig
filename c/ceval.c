@@ -15,11 +15,12 @@ static int hex_val(char c) {
     return -1;
 }
 
-static int hex_to_bytes(const char *hex, uint8_t *out, size_t *out_len) {
+static int hex_to_bytes(const char *hex, uint8_t *out, size_t out_cap, size_t *out_len) {
     size_t hex_len = strlen(hex);
     if (hex_len == 0) { *out_len = 0; return 0; }
     if (hex_len % 2 != 0) return -1;
     *out_len = hex_len / 2;
+    if (*out_len > out_cap) return -1;
     for (size_t i = 0; i < *out_len; i++) {
         int hi = hex_val(hex[2*i]);
         int lo = hex_val(hex[2*i+1]);
@@ -44,8 +45,8 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "usage: ceval eval <hex_code> <hex_msg>\n");
             return 1;
         }
-        if (hex_to_bytes(argv[2], buf1, &len1) != 0 ||
-            hex_to_bytes(argv[3], buf2, &len2) != 0) {
+        if (hex_to_bytes(argv[2], buf1, sizeof(buf1), &len1) != 0 ||
+            hex_to_bytes(argv[3], buf2, sizeof(buf2), &len2) != 0) {
             fprintf(stderr, "bad hex\n");
             return 1;
         }
@@ -70,9 +71,9 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "usage: ceval m001 <hex_xpubkey> <hex_xsig> <hex_msg>\n");
             return 1;
         }
-        if (hex_to_bytes(argv[2], buf1, &len1) != 0 ||
-            hex_to_bytes(argv[3], buf2, &len2) != 0 ||
-            hex_to_bytes(argv[4], buf3, &len3) != 0) {
+        if (hex_to_bytes(argv[2], buf1, sizeof(buf1), &len1) != 0 ||
+            hex_to_bytes(argv[3], buf2, sizeof(buf2), &len2) != 0 ||
+            hex_to_bytes(argv[4], buf3, sizeof(buf3), &len3) != 0) {
             fprintf(stderr, "bad hex\n");
             return 1;
         }
