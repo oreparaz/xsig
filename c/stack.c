@@ -1,10 +1,10 @@
 #include "stack.h"
 
-void stack_init(stack_t *st) {
+void stack_init(xstack_t *st) {
     st->top = 0;
 }
 
-int stack_push(stack_t *st, uint8_t val) {
+int stack_push(xstack_t *st, uint8_t val) {
     if (st->top >= MAX_STACK_SIZE) {
         return -1; // stack overflow
     }
@@ -12,7 +12,7 @@ int stack_push(stack_t *st, uint8_t val) {
     return 0;
 }
 
-int stack_pop(stack_t *st, uint8_t *val) {
+int stack_pop(xstack_t *st, uint8_t *val) {
     if (st->top <= 0) {
         return -1; // stack underflow
     }
@@ -20,11 +20,11 @@ int stack_pop(stack_t *st, uint8_t *val) {
     return 0;
 }
 
-int stack_is_empty(const stack_t *st) {
+int stack_is_empty(const xstack_t *st) {
     return st->top == 0;
 }
 
-int stack_push_bytes(stack_t *st, const uint8_t *buf, size_t len) {
+int stack_push_bytes(xstack_t *st, const uint8_t *buf, size_t len) {
     for (size_t i = 0; i < len; i++) {
         if (stack_push(st, buf[i]) != 0) {
             return -1;
@@ -33,7 +33,7 @@ int stack_push_bytes(stack_t *st, const uint8_t *buf, size_t len) {
     return 0;
 }
 
-int stack_pop_bytes(stack_t *st, uint8_t *buf, size_t len) {
+int stack_pop_bytes(xstack_t *st, uint8_t *buf, size_t len) {
     for (size_t i = 0; i < len; i++) {
         if (stack_pop(st, &buf[i]) != 0) {
             return -1;
@@ -42,7 +42,7 @@ int stack_pop_bytes(stack_t *st, uint8_t *buf, size_t len) {
     return 0;
 }
 
-int stack_pop_pubkey_compressed(stack_t *st, uint8_t *pk_out) {
+int stack_pop_pubkey_compressed(xstack_t *st, uint8_t *pk_out) {
     // Pop 33 bytes (LIFO order) matching Go's PopPublicKeyCompressed
     if (stack_pop_bytes(st, pk_out, 33) != 0) {
         return -1;
@@ -53,7 +53,7 @@ int stack_pop_pubkey_compressed(stack_t *st, uint8_t *pk_out) {
     return 0;
 }
 
-int stack_pop_signature(stack_t *st, uint8_t *sig_out, size_t *sig_len) {
+int stack_pop_signature(xstack_t *st, uint8_t *sig_out, size_t *sig_len) {
     // Parse DER: 0x30 || L1 || [L1 bytes]
     uint8_t marker;
     if (stack_pop(st, &marker) != 0) {

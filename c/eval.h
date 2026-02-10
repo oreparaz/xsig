@@ -14,7 +14,7 @@
 #define OP_NOT            8
 
 typedef struct {
-    stack_t stack;
+    xstack_t stack;
 } eval_t;
 
 void eval_init(eval_t *e);

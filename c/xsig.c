@@ -37,7 +37,7 @@ int run_machine001(const uint8_t *xpubkey, size_t xpubkey_len,
     // Phase 2: transfer stack, deserialize and evaluate xpubkey with message
     eval_t e2;
     eval_init(&e2);
-    memcpy(&e2.stack, &e.stack, sizeof(stack_t));
+    memcpy(&e2.stack, &e.stack, sizeof(xstack_t));
 
     if (deserialize(xpubkey, xpubkey_len, PREFIX_XPUBKEY, &code, &code_len) != 0) {
         return 0;

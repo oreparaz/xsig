@@ -25,6 +25,12 @@ test_main: test_vectors.h $(OBJS) test_main.o
 test_main.o: test_main.c test_vectors.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+ceval: $(OBJS) ceval.o
+	$(CC) $(CFLAGS) -o $@ $(OBJS) ceval.o
+
+ceval.o: ceval.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 test: test_main
 	./test_main
 
@@ -53,5 +59,5 @@ fuzz-der: fuzz_der
 fuzz: fuzz_machine001 fuzz_eval fuzz_der
 
 clean:
-	rm -f *.o p256/*.o test_main test_vectors.h fuzz_machine001 fuzz_eval fuzz_der
+	rm -f *.o p256/*.o test_main ceval test_vectors.h fuzz_machine001 fuzz_eval fuzz_der
 	rm -rf corpus

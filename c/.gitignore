@@ -1,6 +1,7 @@
 # Build artifacts
 *.o
 test_main
+ceval
 test_vectors.h
 fuzz_machine001
 fuzz_eval
