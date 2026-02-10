@@ -1,0 +1,12 @@
+# Build artifacts
+*.o
+test_main
+ceval
+test_vectors.h
+fuzz_machine001
+fuzz_eval
+fuzz_der
+*.dSYM/
+
+# Fuzzer-generated corpus (keep seed corpus via gen_corpus.go)
+corpus/

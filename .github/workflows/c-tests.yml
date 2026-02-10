@@ -1,0 +1,58 @@
+name: C Interpreter
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Static tests (1095 vectors)
+        run: cd c && make test
+
+      - name: Build ceval
+        run: cd c && make ceval
+
+      - name: Differential tests (Go vs C)
+        run: go run ./c/run_differential.go -n 5000 -m 500
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+
+      - name: Generate test vectors
+        run: cd c && make vectors
+
+      - name: Build fuzz targets
+        run: cd c && make FUZZ_CC=clang fuzz_machine001 fuzz_eval fuzz_der
+
+      - name: Generate seed corpus
+        run: go run ./c/gen_corpus.go
+
+      - name: Fuzz eval (30s)
+        run: cd c && ./fuzz_eval -max_total_time=30 corpus/eval
+
+      - name: Fuzz machine001 (30s)
+        run: cd c && ./fuzz_machine001 -max_total_time=30 corpus/machine001
+
+      - name: Fuzz DER parser (30s)
+        run: cd c && ./fuzz_der -max_total_time=30 corpus/der
