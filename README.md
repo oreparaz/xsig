@@ -98,7 +98,7 @@ Written by a single person with zero peer review.
 
 ## Future work
 
-- [ ] C interpreter
+- [X] C interpreter
 - [X] Multisignatures
 - [ ] miniscript-like compiler
 - [ ] semi-formal security argument / security verification
