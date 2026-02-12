@@ -17,9 +17,10 @@ static int deserialize(const uint8_t *data, size_t data_len,
     return 0;
 }
 
-int run_machine001(const uint8_t *xpubkey, size_t xpubkey_len,
-                   const uint8_t *xsig, size_t xsig_len,
-                   const uint8_t *msg, size_t msg_len) {
+int run_machine001_with_context(const uint8_t *xpubkey, size_t xpubkey_len,
+                                const uint8_t *xsig, size_t xsig_len,
+                                const uint8_t *msg, size_t msg_len,
+                                const device_context_t *ctx) {
     const uint8_t *code;
     size_t code_len;
 
@@ -30,6 +31,7 @@ int run_machine001(const uint8_t *xpubkey, size_t xpubkey_len,
 
     eval_t e;
     eval_init(&e);
+    if (ctx != NULL) e.ctx = ctx;
     if (eval_run(&e, code, code_len) != 0) {
         return 0;
     }
@@ -37,6 +39,7 @@ int run_machine001(const uint8_t *xpubkey, size_t xpubkey_len,
     // Phase 2: transfer stack, deserialize and evaluate xpubkey with message
     eval_t e2;
     eval_init(&e2);
+    if (ctx != NULL) e2.ctx = ctx;
     memcpy(&e2.stack, &e.stack, sizeof(xstack_t));
 
     if (deserialize(xpubkey, xpubkey_len, PREFIX_XPUBKEY, &code, &code_len) != 0) {
@@ -48,4 +51,12 @@ int run_machine001(const uint8_t *xpubkey, size_t xpubkey_len,
 
     // Final check: stack must be exactly [1]
     return (e2.stack.top == 1 && e2.stack.s[0] == 1) ? 1 : 0;
+}
+
+int run_machine001(const uint8_t *xpubkey, size_t xpubkey_len,
+                   const uint8_t *xsig, size_t xsig_len,
+                   const uint8_t *msg, size_t msg_len) {
+    return run_machine001_with_context(xpubkey, xpubkey_len,
+                                      xsig, xsig_len,
+                                      msg, msg_len, NULL);
 }

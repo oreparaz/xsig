@@ -12,6 +12,7 @@ type Word struct {
 type Eval struct {
 	Stack      Stack
 	Dictionary []Word
+	Context    *DeviceContext
 }
 
 func NewEval() *Eval {
@@ -22,6 +23,7 @@ func NewEval() *Eval {
 		{OP_AND, e.and},
 		{OP_OR, e.or},
 		{OP_NOT, e.not},
+		{OP_EQUAL32, e.equal32},
 	}
 	return e
 }
@@ -74,6 +76,17 @@ func (e *Eval) EvalWithXmsg(code []byte, xmsg []byte) error {
 			err := e.multisigverify(xmsg)
 			if err != nil {
 				return err
+			}
+			goto next
+		case OP_DEVICEID:
+			if e.Context == nil || len(e.Context.DeviceID) != 32 {
+				return errors.New("OP_DEVICEID: no device context set")
+			}
+			for i := 31; i >= 0; i-- {
+				err := e.Stack.Push(e.Context.DeviceID[i])
+				if err != nil {
+					return errors.Wrapf(err, "OP_DEVICEID")
+				}
 			}
 			goto next
 		default:

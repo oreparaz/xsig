@@ -244,3 +244,88 @@ func TestRunMachine001_XPubKeyEvalError(t *testing.T) {
 
 	assert.False(t, RunMachine001(xPubKey, xSig, []byte("msg")))
 }
+
+func TestRunMachine001_DeviceID_Match(t *testing.T) {
+	deviceID := make([]byte, 32)
+	for i := range deviceID { deviceID[i] = byte(i + 0x42) }
+	ctx := &ll.DeviceContext{DeviceID: deviceID}
+
+	// xsig: empty (no data needed)
+	xSig := MachineCode{}
+	xSigSer := xSig.Serialize(CodeTypeXSig)
+
+	// xpubkey: PUSH(expected_serial) DEVICEID EQUAL32
+	xPK := MachineCode{}
+	xPK.Append(ll.Push(deviceID))
+	xPK.Append(ll.DeviceID())
+	xPK.Append(ll.Equal32())
+	xPKSer := xPK.Serialize(CodeTypeXPublicKey)
+
+	assert.True(t, RunMachine001WithContext(xPKSer, xSigSer, []byte("msg"), ctx))
+}
+
+func TestRunMachine001_DeviceID_Mismatch(t *testing.T) {
+	deviceID := make([]byte, 32)
+	for i := range deviceID { deviceID[i] = byte(i + 0x42) }
+	ctx := &ll.DeviceContext{DeviceID: deviceID}
+
+	wrongID := make([]byte, 32)
+
+	xSig := MachineCode{}
+	xSigSer := xSig.Serialize(CodeTypeXSig)
+
+	xPK := MachineCode{}
+	xPK.Append(ll.Push(wrongID))
+	xPK.Append(ll.DeviceID())
+	xPK.Append(ll.Equal32())
+	xPKSer := xPK.Serialize(CodeTypeXPublicKey)
+
+	assert.False(t, RunMachine001WithContext(xPKSer, xSigSer, []byte("msg"), ctx))
+}
+
+func TestRunMachine001_DeviceID_NoContext(t *testing.T) {
+	deviceID := make([]byte, 32)
+
+	xSig := MachineCode{}
+	xSigSer := xSig.Serialize(CodeTypeXSig)
+
+	xPK := MachineCode{}
+	xPK.Append(ll.Push(deviceID))
+	xPK.Append(ll.DeviceID())
+	xPK.Append(ll.Equal32())
+	xPKSer := xPK.Serialize(CodeTypeXPublicKey)
+
+	// No context → OP_DEVICEID should fail → machine returns false
+	assert.False(t, RunMachine001(xPKSer, xSigSer, []byte("msg")))
+}
+
+func TestRunMachine001_DeviceID_WithSigverify(t *testing.T) {
+	// Combined test: require both valid signature AND correct device ID
+	msg := []byte("firmware-v1.2")
+	_, pk, sig := crypto.HelperVerifyData(msg)
+
+	deviceID := make([]byte, 32)
+	for i := range deviceID { deviceID[i] = byte(i + 0x10) }
+	ctx := &ll.DeviceContext{DeviceID: deviceID}
+
+	// xsig: push signature
+	xSigMC := MachineCode{}
+	xSigMC.Append(ll.Push(sig))
+	xSigSer := xSigMC.Serialize(CodeTypeXSig)
+
+	// xpubkey: PUSH(pk) SIGVERIFY PUSH(expected_serial) DEVICEID EQUAL32 AND
+	xPK := MachineCode{}
+	xPK.Append(ll.Push(pk))
+	xPK.Append(ll.SignatureVerify())
+	xPK.Append(ll.Push(deviceID))
+	xPK.Append(ll.DeviceID())
+	xPK.Append(ll.Equal32())
+	xPK.Append(ll.And())
+	xPKSer := xPK.Serialize(CodeTypeXPublicKey)
+
+	assert.True(t, RunMachine001WithContext(xPKSer, xSigSer, msg, ctx))
+
+	// Wrong device → should fail
+	wrongCtx := &ll.DeviceContext{DeviceID: make([]byte, 32)}
+	assert.False(t, RunMachine001WithContext(xPKSer, xSigSer, msg, wrongCtx))
+}

@@ -5,6 +5,7 @@
 
 void eval_init(eval_t *e) {
     stack_init(&e->stack);
+    e->ctx = NULL;
 }
 
 static int do_sigverify(eval_t *e, const uint8_t *xmsg, size_t xmsg_len) {
@@ -138,6 +139,24 @@ int eval_with_xmsg(eval_t *e, const uint8_t *code, size_t code_len,
         }
         case OP_MULTISIGVERIFY: {
             if (do_multisigverify(e, xmsg, xmsg_len) != 0) return -1;
+            pc++;
+            break;
+        }
+        case OP_EQUAL32: {
+            uint8_t a[32], b[32];
+            if (stack_pop_bytes(&e->stack, a, 32) != 0) return -1;
+            if (stack_pop_bytes(&e->stack, b, 32) != 0) return -1;
+            if (stack_push(&e->stack, (uint8_t)(memcmp(a, b, 32) == 0 ? 1 : 0)) != 0) return -1;
+            pc++;
+            break;
+        }
+        case OP_DEVICEID: {
+            if (e->ctx == NULL || e->ctx->device_id == NULL || e->ctx->device_id_len != 32) {
+                return -1;
+            }
+            for (int i = 31; i >= 0; i--) {
+                if (stack_push(&e->stack, e->ctx->device_id[i]) != 0) return -1;
+            }
             pc++;
             break;
         }

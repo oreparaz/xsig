@@ -50,6 +50,35 @@ func (e *Eval) not() error {
 	return nil
 }
 
+func (e *Eval) equal32() error {
+	a := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		val, err := e.Stack.Pop()
+		if err != nil {
+			return errors.Wrapf(err, "equal32")
+		}
+		a[i] = val
+	}
+	b := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		val, err := e.Stack.Pop()
+		if err != nil {
+			return errors.Wrapf(err, "equal32")
+		}
+		b[i] = val
+	}
+	equal := byte(0)
+	for i := 0; i < 32; i++ {
+		if a[i] != b[i] {
+			e.Stack.Push(equal)
+			return nil
+		}
+	}
+	equal = 1
+	e.Stack.Push(equal)
+	return nil
+}
+
 func (e *Eval) sigverify(xmsg []byte) error {
 	publicKey, err := e.Stack.PopPublicKeyCompressed()
 	if err != nil {

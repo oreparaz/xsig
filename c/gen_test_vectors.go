@@ -20,6 +20,7 @@ type EvalTV struct {
 	Name        string
 	Code        []byte
 	Msg         []byte
+	DeviceID    []byte
 	ExpectError bool
 	ExpectStack []byte
 }
@@ -52,6 +53,30 @@ func evalTVAsm(name string, build func(a *ll.Assembler), msg []byte) EvalTV {
 	a := ll.Assembler{}
 	build(&a)
 	return evalTV(name, a.Code, msg)
+}
+
+func evalTVWithCtx(name string, code []byte, msg []byte, deviceID []byte) EvalTV {
+	e := ll.NewEval()
+	if len(deviceID) > 0 {
+		e.Context = &ll.DeviceContext{DeviceID: deviceID}
+	}
+	err := e.EvalWithXmsg(code, msg)
+	stack := make([]byte, len(e.Stack.S))
+	copy(stack, e.Stack.S)
+	return EvalTV{
+		Name:        name,
+		Code:        code,
+		Msg:         msg,
+		DeviceID:    deviceID,
+		ExpectError: err != nil,
+		ExpectStack: stack,
+	}
+}
+
+func evalTVAsmWithCtx(name string, build func(a *ll.Assembler), msg []byte, deviceID []byte) EvalTV {
+	a := ll.Assembler{}
+	build(&a)
+	return evalTVWithCtx(name, a.Code, msg, deviceID)
 }
 
 func m001TV(name string, xpubkey, xsig, msg []byte) M001TV {
@@ -269,10 +294,10 @@ func errorTests() []EvalTV {
 		evalTV("and_one_element", []byte{0x03, 0x01, 0x42, 0x06}, nil),
 		evalTV("or_one_element", []byte{0x03, 0x01, 0x42, 0x07}, nil),
 		// Unknown opcodes
-		evalTV("unknown_opcode_09", []byte{0x09}, nil),
-		evalTV("unknown_opcode_0A", []byte{0x0A}, nil),
+		evalTV("unknown_opcode_0B", []byte{0x0B}, nil),
+		evalTV("unknown_opcode_0C", []byte{0x0C}, nil),
 		evalTV("unknown_opcode_FF", []byte{0xFF}, nil),
-		evalTV("unknown_after_valid", []byte{0x03, 0x01, 0x42, 0x09}, nil),
+		evalTV("unknown_after_valid", []byte{0x03, 0x01, 0x42, 0x0B}, nil),
 		// Sigverify on empty stack
 		evalTV("sigverify_empty_stack", []byte{0x04}, nil),
 		// Multisigverify on empty stack
@@ -323,6 +348,83 @@ func sigverifyEvalTests() []EvalTV {
 			a.Append(ll.Push(sig)); a.Append(ll.Push(pk))
 			a.Append(ll.SignatureVerify()); a.Append(ll.Not())
 		}, msg),
+	}
+}
+
+func equal32Tests() []EvalTV {
+	id32 := make([]byte, 32)
+	for i := range id32 {
+		id32[i] = byte(i + 1)
+	}
+	id32diff := make([]byte, 32)
+	copy(id32diff, id32)
+	id32diff[31] = 0xFF
+
+	return []EvalTV{
+		evalTVAsm("equal32_match", func(a *ll.Assembler) {
+			a.Append(ll.Push(id32))
+			a.Append(ll.Push(id32))
+			a.Append(ll.Equal32())
+		}, nil),
+		evalTVAsm("equal32_mismatch", func(a *ll.Assembler) {
+			a.Append(ll.Push(id32))
+			a.Append(ll.Push(id32diff))
+			a.Append(ll.Equal32())
+		}, nil),
+		evalTVAsm("equal32_underflow", func(a *ll.Assembler) {
+			a.Append(ll.Push(id32))
+			a.Append(ll.Equal32())
+		}, nil),
+		evalTV("equal32_empty_stack", []byte{0x09}, nil),
+		evalTVAsm("equal32_zeros", func(a *ll.Assembler) {
+			zeros := make([]byte, 32)
+			a.Append(ll.Push(zeros))
+			a.Append(ll.Push(zeros))
+			a.Append(ll.Equal32())
+		}, nil),
+		evalTVAsm("equal32_ff", func(a *ll.Assembler) {
+			ff := make([]byte, 32)
+			for i := range ff {
+				ff[i] = 0xFF
+			}
+			a.Append(ll.Push(ff))
+			a.Append(ll.Push(ff))
+			a.Append(ll.Equal32())
+		}, nil),
+	}
+}
+
+func deviceIDTests() []EvalTV {
+	deviceID := make([]byte, 32)
+	for i := range deviceID {
+		deviceID[i] = byte(i + 1)
+	}
+
+	diffID := make([]byte, 32)
+	copy(diffID, deviceID)
+	diffID[0] = 0xFF
+
+	return []EvalTV{
+		// DEVICEID + EQUAL32 with matching PUSH
+		evalTVAsmWithCtx("deviceid_equal_match", func(a *ll.Assembler) {
+			a.Append(ll.Push(deviceID))
+			a.Append(ll.DeviceID())
+			a.Append(ll.Equal32())
+		}, nil, deviceID),
+		// DEVICEID + EQUAL32 with mismatched PUSH
+		evalTVAsmWithCtx("deviceid_equal_mismatch", func(a *ll.Assembler) {
+			a.Append(ll.Push(diffID))
+			a.Append(ll.DeviceID())
+			a.Append(ll.Equal32())
+		}, nil, deviceID),
+		// DEVICEID without context → error
+		evalTVAsm("deviceid_no_context", func(a *ll.Assembler) {
+			a.Append(ll.DeviceID())
+		}, nil),
+		// Just DEVICEID with context (leaves 32 bytes on stack)
+		evalTVAsmWithCtx("deviceid_push_only", func(a *ll.Assembler) {
+			a.Append(ll.DeviceID())
+		}, nil, deviceID),
 	}
 }
 
@@ -541,7 +643,7 @@ func randomSmartEvalTests(n int, seed int64) []EvalTV {
 					depth++
 				}
 			} else {
-				switch rng.Intn(5) {
+				switch rng.Intn(6) {
 				case 0:
 					a.Append(ll.Add())
 					depth--
@@ -556,6 +658,14 @@ func randomSmartEvalTests(n int, seed int64) []EvalTV {
 					depth--
 				case 4:
 					a.Append(ll.Not())
+				case 5:
+					if depth >= 64 {
+						a.Append(ll.Equal32())
+						depth -= 63 // pop 64, push 1
+					} else {
+						a.Append(ll.Push1(rng.Intn(256)))
+						depth++
+					}
 				}
 			}
 		}
@@ -571,7 +681,7 @@ func randomDumbEvalTests(n int, seed int64) []EvalTV {
 		a := ll.Assembler{}
 		nOps := rng.Intn(15) + 1
 		for j := 0; j < nOps; j++ {
-			switch rng.Intn(6) {
+			switch rng.Intn(7) {
 			case 0:
 				a.Append(ll.Push1(rng.Intn(256)))
 			case 1:
@@ -584,6 +694,8 @@ func randomDumbEvalTests(n int, seed int64) []EvalTV {
 				a.Append(ll.Or())
 			case 5:
 				a.Append(ll.Not())
+			case 6:
+				a.Append(ll.Equal32())
 			}
 		}
 		tests[i] = evalTV(fmt.Sprintf("rand_dumb_%d", i), a.Code, nil)
@@ -726,6 +838,8 @@ func main() {
 	evalTests = append(evalTests, errorTests()...)
 	evalTests = append(evalTests, complexSequenceTests()...)
 	evalTests = append(evalTests, sigverifyEvalTests()...)
+	evalTests = append(evalTests, equal32Tests()...)
+	evalTests = append(evalTests, deviceIDTests()...)
 	evalTests = append(evalTests, randomSmartEvalTests(500, 42)...)
 	evalTests = append(evalTests, randomDumbEvalTests(200, 123)...)
 	evalTests = append(evalTests, randomRawByteTests(200, 456)...)
@@ -758,6 +872,7 @@ func main() {
 	fmt.Fprintln(f, "    const uint8_t *msg; size_t msg_len;")
 	fmt.Fprintln(f, "    int expect_error;")
 	fmt.Fprintln(f, "    const uint8_t *expect_stack; size_t expect_stack_len;")
+	fmt.Fprintln(f, "    const uint8_t *device_id; size_t device_id_len;")
 	fmt.Fprintln(f, "} eval_tv_t;")
 	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "typedef struct {")
@@ -777,6 +892,9 @@ func main() {
 		if !tv.ExpectError {
 			emitBytes(f, fmt.Sprintf("et_%d_stack", i), tv.ExpectStack)
 		}
+		if len(tv.DeviceID) > 0 {
+			emitBytes(f, fmt.Sprintf("et_%d_devid", i), tv.DeviceID)
+		}
 		fmt.Fprintln(f)
 	}
 
@@ -793,8 +911,14 @@ func main() {
 			stackRef = "NULL"
 			stackLen = 0
 		}
-		fmt.Fprintf(f, "    {\"%s\", et_%d_code, %d, et_%d_msg, %d, %d, %s, %d},\n",
-			tv.Name, i, len(tv.Code), i, len(tv.Msg), expectErr, stackRef, stackLen)
+		devRef := "NULL"
+		devLen := 0
+		if len(tv.DeviceID) > 0 {
+			devRef = fmt.Sprintf("et_%d_devid", i)
+			devLen = len(tv.DeviceID)
+		}
+		fmt.Fprintf(f, "    {\"%s\", et_%d_code, %d, et_%d_msg, %d, %d, %s, %d, %s, %d},\n",
+			tv.Name, i, len(tv.Code), i, len(tv.Msg), expectErr, stackRef, stackLen, devRef, devLen)
 	}
 	fmt.Fprintln(f, "};")
 	fmt.Fprintf(f, "#define NUM_EVAL_TESTS %d\n\n", len(evalTests))

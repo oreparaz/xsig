@@ -12,9 +12,17 @@
 #define OP_AND            6
 #define OP_OR             7
 #define OP_NOT            8
+#define OP_EQUAL32        9
+#define OP_DEVICEID       10
+
+typedef struct {
+    const uint8_t *device_id; // 32 bytes or NULL
+    size_t device_id_len;
+} device_context_t;
 
 typedef struct {
     xstack_t stack;
+    const device_context_t *ctx;
 } eval_t;
 
 void eval_init(eval_t *e);

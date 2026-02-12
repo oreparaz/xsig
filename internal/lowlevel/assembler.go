@@ -54,6 +54,14 @@ func MultisigVerify() Instruction {
 	return Instruction{ Opcode: OP_MULTISIGVERIFY }
 }
 
+func Equal32() Instruction {
+	return Instruction{ Opcode: OP_EQUAL32 }
+}
+
+func DeviceID() Instruction {
+	return Instruction{ Opcode: OP_DEVICEID }
+}
+
 func (a *Assembler) Append(in Instruction) error {
 	if in.Opcode == OP_PUSH && len(in.Literal) > 255 {
 		return errors.Errorf("OP_PUSH literal too large: %d bytes (max 255)", len(in.Literal))
