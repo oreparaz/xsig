@@ -102,30 +102,33 @@ func serializeXPubKey(build func(a *ll.Assembler)) []byte {
 // ---- eval tests ----
 
 func runEvalTest(idx int) error {
-	code, msg := genEvalProgram()
+	code, msg, deviceID := genEvalProgram()
 
 	// Run Go
-	goResult, goStack := evalGo(code, msg)
+	goResult, goStack := evalGo(code, msg, deviceID)
 
 	// Run C
-	cResult, cStack, err := evalC(code, msg)
+	cResult, cStack, err := evalC(code, msg, deviceID)
 	if err != nil {
-		return fmt.Errorf("ceval exec error: %v (code=%x msg=%x)", err, code, msg)
+		return fmt.Errorf("ceval exec error: %v (code=%x msg=%x devid=%x)", err, code, msg, deviceID)
 	}
 
 	if goResult != cResult {
-		return fmt.Errorf("result mismatch: go=%s c=%s (code=%x msg=%x)",
-			goResult, cResult, code, msg)
+		return fmt.Errorf("result mismatch: go=%s c=%s (code=%x msg=%x devid=%x)",
+			goResult, cResult, code, msg, deviceID)
 	}
 	if goResult == "ok" && goStack != cStack {
-		return fmt.Errorf("stack mismatch: go=%s c=%s (code=%x msg=%x)",
-			goStack, cStack, code, msg)
+		return fmt.Errorf("stack mismatch: go=%s c=%s (code=%x msg=%x devid=%x)",
+			goStack, cStack, code, msg, deviceID)
 	}
 	return nil
 }
 
-func evalGo(code, msg []byte) (result string, stack string) {
+func evalGo(code, msg, deviceID []byte) (result string, stack string) {
 	e := ll.NewEval()
+	if len(deviceID) > 0 {
+		e.Context = &ll.DeviceContext{DeviceID: deviceID}
+	}
 	err := e.EvalWithXmsg(code, msg)
 	if err != nil {
 		return "error", ""
@@ -133,10 +136,14 @@ func evalGo(code, msg []byte) (result string, stack string) {
 	return "ok", hex.EncodeToString(e.Stack.S)
 }
 
-func evalC(code, msg []byte) (result string, stack string, err error) {
-	out, execErr := exec.Command(*cevalBin, "eval",
+func evalC(code, msg, deviceID []byte) (result string, stack string, err error) {
+	args := []string{"eval",
 		hex.EncodeToString(code),
-		hex.EncodeToString(msg)).CombinedOutput()
+		hex.EncodeToString(msg)}
+	if len(deviceID) > 0 {
+		args = append(args, hex.EncodeToString(deviceID))
+	}
+	out, execErr := exec.Command(*cevalBin, args...).CombinedOutput()
 
 	outStr := strings.TrimSpace(string(out))
 
@@ -153,19 +160,28 @@ func evalC(code, msg []byte) (result string, stack string, err error) {
 	return "", "", fmt.Errorf("unexpected output: %s", outStr)
 }
 
-func genEvalProgram() (code []byte, msg []byte) {
-	r := mrand.Intn(10)
+func genEvalProgram() (code []byte, msg []byte, deviceID []byte) {
+	r := mrand.Intn(12)
 	switch {
 	case r < 3:
-		return genSmartEval()
+		c, m := genSmartEval()
+		return c, m, nil
 	case r < 5:
-		return genArithmeticChain()
+		c, m := genArithmeticChain()
+		return c, m, nil
 	case r < 7:
-		return genSigverifyEval()
+		c, m := genSigverifyEval()
+		return c, m, nil
+	case r < 8:
+		c, m := genDumbEval()
+		return c, m, nil
 	case r < 9:
-		return genDumbEval()
+		c, m := genRawBytes()
+		return c, m, nil
+	case r < 10:
+		return genEqual32Eval()
 	default:
-		return genRawBytes()
+		return genDeviceIDEval()
 	}
 }
 
@@ -173,7 +189,7 @@ func genSmartEval() ([]byte, []byte) {
 	a := &ll.Assembler{}
 	nOps := mrand.Intn(20) + 1
 	for i := 0; i < nOps; i++ {
-		op := mrand.Intn(6)
+		op := mrand.Intn(7)
 		switch op {
 		case 0:
 			n := mrand.Intn(10) + 1
@@ -192,6 +208,8 @@ func genSmartEval() ([]byte, []byte) {
 			a.Append(ll.Or())
 		case 5:
 			a.Append(ll.Not())
+		case 6:
+			a.Append(ll.Equal32())
 		}
 	}
 	msg := make([]byte, mrand.Intn(32))
@@ -243,7 +261,7 @@ func genDumbEval() ([]byte, []byte) {
 	a := &ll.Assembler{}
 	nOps := mrand.Intn(15) + 1
 	for i := 0; i < nOps; i++ {
-		r := mrand.Intn(6)
+		r := mrand.Intn(7)
 		switch r {
 		case 0:
 			n := mrand.Intn(5) + 1
@@ -262,6 +280,8 @@ func genDumbEval() ([]byte, []byte) {
 			a.Append(ll.Or())
 		case 5:
 			a.Append(ll.Not())
+		case 6:
+			a.Append(ll.Equal32())
 		}
 	}
 	return a.Code, nil
@@ -280,39 +300,102 @@ func genRawBytes() ([]byte, []byte) {
 	return code, msg
 }
 
+func genEqual32Eval() ([]byte, []byte, []byte) {
+	a := &ll.Assembler{}
+
+	// Push two 32-byte values, sometimes matching
+	val1 := make([]byte, 32)
+	for i := range val1 {
+		val1[i] = byte(mrand.Intn(256))
+	}
+	val2 := make([]byte, 32)
+	if mrand.Intn(2) == 0 {
+		copy(val2, val1) // match
+	} else {
+		for i := range val2 {
+			val2[i] = byte(mrand.Intn(256))
+		}
+	}
+
+	a.Append(ll.Push(val1))
+	a.Append(ll.Push(val2))
+	a.Append(ll.Equal32())
+
+	return a.Code, nil, nil
+}
+
+func genDeviceIDEval() ([]byte, []byte, []byte) {
+	deviceID := make([]byte, 32)
+	for i := range deviceID {
+		deviceID[i] = byte(mrand.Intn(256))
+	}
+
+	a := &ll.Assembler{}
+
+	switch mrand.Intn(3) {
+	case 0:
+		// PUSH(deviceID) DEVICEID EQUAL32 → should be 1
+		a.Append(ll.Push(deviceID))
+		a.Append(ll.DeviceID())
+		a.Append(ll.Equal32())
+	case 1:
+		// PUSH(random) DEVICEID EQUAL32 → usually 0
+		other := make([]byte, 32)
+		for i := range other {
+			other[i] = byte(mrand.Intn(256))
+		}
+		a.Append(ll.Push(other))
+		a.Append(ll.DeviceID())
+		a.Append(ll.Equal32())
+	case 2:
+		// Just DEVICEID (leaves 32 bytes on stack)
+		a.Append(ll.DeviceID())
+	}
+
+	return a.Code, nil, deviceID
+}
+
 // ---- m001 tests ----
 
 func runM001Test(idx int) error {
-	xpubkey, xsig, msg := genM001Input()
+	xpubkey, xsig, msg, deviceID := genM001Input()
 
 	// Run Go
-	goResult := m001Go(xpubkey, xsig, msg)
+	goResult := m001Go(xpubkey, xsig, msg, deviceID)
 
 	// Run C
-	cResult, err := m001C(xpubkey, xsig, msg)
+	cResult, err := m001C(xpubkey, xsig, msg, deviceID)
 	if err != nil {
 		return fmt.Errorf("ceval m001 exec error: %v", err)
 	}
 
 	if goResult != cResult {
-		return fmt.Errorf("m001 mismatch: go=%d c=%d (xpk=%x xsig=%x msg=%x)",
-			goResult, cResult, xpubkey, xsig, msg)
+		return fmt.Errorf("m001 mismatch: go=%d c=%d (xpk=%x xsig=%x msg=%x devid=%x)",
+			goResult, cResult, xpubkey, xsig, msg, deviceID)
 	}
 	return nil
 }
 
-func m001Go(xpubkey, xsig, msg []byte) int {
-	if machines.RunMachine001(xpubkey, xsig, msg) {
+func m001Go(xpubkey, xsig, msg, deviceID []byte) int {
+	var ctx *ll.DeviceContext
+	if len(deviceID) > 0 {
+		ctx = &ll.DeviceContext{DeviceID: deviceID}
+	}
+	if machines.RunMachine001WithContext(xpubkey, xsig, msg, ctx) {
 		return 1
 	}
 	return 0
 }
 
-func m001C(xpubkey, xsig, msg []byte) (int, error) {
-	out, execErr := exec.Command(*cevalBin, "m001",
+func m001C(xpubkey, xsig, msg, deviceID []byte) (int, error) {
+	args := []string{"m001",
 		hex.EncodeToString(xpubkey),
 		hex.EncodeToString(xsig),
-		hex.EncodeToString(msg)).CombinedOutput()
+		hex.EncodeToString(msg)}
+	if len(deviceID) > 0 {
+		args = append(args, hex.EncodeToString(deviceID))
+	}
+	out, execErr := exec.Command(*cevalBin, args...).CombinedOutput()
 
 	outStr := strings.TrimSpace(string(out))
 
@@ -326,19 +409,26 @@ func m001C(xpubkey, xsig, msg []byte) (int, error) {
 	return 0, nil
 }
 
-func genM001Input() (xpubkey, xsig, msg []byte) {
-	r := mrand.Intn(6)
+func genM001Input() (xpubkey, xsig, msg, deviceID []byte) {
+	r := mrand.Intn(7)
 	switch {
 	case r < 2:
-		return genValidSingleSig()
+		xpk, xs, m := genValidSingleSig()
+		return xpk, xs, m, nil
 	case r < 3:
-		return genValidMultisig()
+		xpk, xs, m := genValidMultisig()
+		return xpk, xs, m, nil
 	case r < 4:
-		return genCorruptedSingleSig()
+		xpk, xs, m := genCorruptedSingleSig()
+		return xpk, xs, m, nil
 	case r < 5:
-		return genRandomM001()
+		xpk, xs, m := genRandomM001()
+		return xpk, xs, m, nil
+	case r < 6:
+		xpk, xs, m := genRawM001()
+		return xpk, xs, m, nil
 	default:
-		return genRawM001()
+		return genDeviceIDM001()
 	}
 }
 
@@ -465,4 +555,46 @@ func genRawM001() ([]byte, []byte, []byte) {
 		msg[i] = byte(mrand.Intn(256))
 	}
 	return xpk, xsig, msg
+}
+
+func genDeviceIDM001() ([]byte, []byte, []byte, []byte) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	msg := make([]byte, 16+mrand.Intn(48))
+	rand.Read(msg)
+
+	pk := compressPK(&key.PublicKey)
+	sig, err := signMsg(key, msg)
+	if err != nil {
+		return nil, nil, msg, nil
+	}
+
+	deviceID := make([]byte, 32)
+	for i := range deviceID {
+		deviceID[i] = byte(mrand.Intn(256))
+	}
+
+	// xsig pushes the signature
+	xsigSer := serializeXSig(func(a *ll.Assembler) {
+		a.Append(ll.Push(sig))
+	})
+
+	// xpubkey: PUSH(deviceID) DEVICEID EQUAL32 PUSH(pk) SIGVERIFY AND
+	// This checks both device ID and signature
+	xpubkey := serializeXPubKey(func(a *ll.Assembler) {
+		a.Append(ll.Push(deviceID))
+		a.Append(ll.DeviceID())
+		a.Append(ll.Equal32())
+		a.Append(ll.Push(pk))
+		a.Append(ll.SignatureVerify())
+		a.Append(ll.And())
+	})
+
+	// Sometimes use a wrong device ID
+	testDeviceID := deviceID
+	if mrand.Intn(3) == 0 {
+		testDeviceID = make([]byte, 32)
+		rand.Read(testDeviceID)
+	}
+
+	return xpubkey, xsigSer, msg, testDeviceID
 }

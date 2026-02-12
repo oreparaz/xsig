@@ -323,3 +323,97 @@ func TestAssembler_PushMaxLength(t *testing.T) {
 	err := a.Append(Push(data))
 	assert.Nil(t, err, "assembler should accept Push with exactly 255 bytes")
 }
+
+func TestEval_Equal32_Match(t *testing.T) {
+	data := make([]byte, 32)
+	for i := range data { data[i] = byte(i) }
+	a := Assembler{}
+	a.Append(Push(data))
+	a.Append(Push(data))
+	a.Append(Equal32())
+	e := NewEval()
+	err := e.Eval(a.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{1}, e.Stack.S)
+}
+
+func TestEval_Equal32_Mismatch(t *testing.T) {
+	d1 := make([]byte, 32)
+	d2 := make([]byte, 32)
+	d2[0] = 0xFF
+	a := Assembler{}
+	a.Append(Push(d1))
+	a.Append(Push(d2))
+	a.Append(Equal32())
+	e := NewEval()
+	err := e.Eval(a.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{0}, e.Stack.S)
+}
+
+func TestEval_Equal32_EmptyStack(t *testing.T) {
+	code := []byte{OP_EQUAL32}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+}
+
+func TestEval_Equal32_Underflow(t *testing.T) {
+	// Push only 31 bytes + 32 bytes = 63 bytes, need 64
+	a := Assembler{}
+	a.Append(Push(make([]byte, 31)))
+	a.Append(Push(make([]byte, 32)))
+	a.Append(Equal32())
+	e := NewEval()
+	err := e.Eval(a.Code)
+	assert.NotNil(t, err)
+}
+
+func TestEval_DeviceID_WithContext(t *testing.T) {
+	deviceID := make([]byte, 32)
+	for i := range deviceID { deviceID[i] = byte(i + 0x10) }
+	e := NewEval()
+	e.Context = &DeviceContext{DeviceID: deviceID}
+	a := Assembler{}
+	a.Append(DeviceID())
+	err := e.Eval(a.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, 32, len(e.Stack.S))
+}
+
+func TestEval_DeviceID_NoContext(t *testing.T) {
+	code := []byte{OP_DEVICEID}
+	e := NewEval()
+	err := e.Eval(code)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "OP_DEVICEID")
+}
+
+func TestEval_DeviceID_Equal32_Match(t *testing.T) {
+	deviceID := make([]byte, 32)
+	for i := range deviceID { deviceID[i] = byte(i + 0xA0) }
+	e := NewEval()
+	e.Context = &DeviceContext{DeviceID: deviceID}
+	a := Assembler{}
+	a.Append(Push(deviceID))
+	a.Append(DeviceID())
+	a.Append(Equal32())
+	err := e.Eval(a.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{1}, e.Stack.S)
+}
+
+func TestEval_DeviceID_Equal32_Mismatch(t *testing.T) {
+	deviceID := make([]byte, 32)
+	for i := range deviceID { deviceID[i] = byte(i + 0xA0) }
+	wrongID := make([]byte, 32)
+	e := NewEval()
+	e.Context = &DeviceContext{DeviceID: deviceID}
+	a := Assembler{}
+	a.Append(Push(wrongID))
+	a.Append(DeviceID())
+	a.Append(Equal32())
+	err := e.Eval(a.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{0}, e.Stack.S)
+}

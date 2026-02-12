@@ -36,6 +36,8 @@ func TestAssembler_AllConstructors(t *testing.T) {
 	assert.Equal(t, OP_NOT, Not().Opcode)
 	assert.Equal(t, OP_MULTISIGVERIFY, MultisigVerify().Opcode)
 	assert.Equal(t, OP_SIGVERIFY, SignatureVerify().Opcode)
+	assert.Equal(t, OP_EQUAL32, Equal32().Opcode)
+	assert.Equal(t, OP_DEVICEID, DeviceID().Opcode)
 
 	// Verify they produce correct bytecode through Append
 	a := Assembler{}

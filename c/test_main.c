@@ -7,6 +7,13 @@
 static int run_eval_test(const eval_tv_t *tv) {
     eval_t e;
     eval_init(&e);
+
+    if (tv->device_id != NULL) {
+        static device_context_t dctx;
+        dctx.device_id = tv->device_id;
+        e.ctx = &dctx;
+    }
+
     int ret = eval_with_xmsg(&e, tv->code, tv->code_len, tv->msg, tv->msg_len);
 
     if (tv->expect_error) {

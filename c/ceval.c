@@ -1,7 +1,7 @@
 // CLI wrapper for differential testing.
 // Usage:
-//   ceval eval <hex_code> <hex_msg>     → prints "ok:<hex_stack>" or "error"
-//   ceval m001 <hex_xpubkey> <hex_xsig> <hex_msg> → prints "0" or "1"
+//   ceval eval <hex_code> <hex_msg> [hex_device_id]  → prints "ok:<hex_stack>" or "error"
+//   ceval m001 <hex_xpubkey> <hex_xsig> <hex_msg> [hex_device_id] → prints "0" or "1"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +30,16 @@ static int hex_to_bytes(const char *hex, uint8_t *out, size_t out_cap, size_t *o
     return 0;
 }
 
+static int parse_device_id(const char *hex, device_context_t *dctx, uint8_t *dev_buf) {
+    size_t dev_len;
+    if (hex_to_bytes(hex, dev_buf, 32, &dev_len) != 0 || dev_len != 32) {
+        fprintf(stderr, "bad device_id hex (must be exactly 32 bytes)\n");
+        return -1;
+    }
+    dctx->device_id = dev_buf;
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         fprintf(stderr, "usage: ceval eval|m001 ...\n");
@@ -38,11 +48,12 @@ int main(int argc, char *argv[]) {
 
     // Buffers large enough for any reasonable input
     static uint8_t buf1[65536], buf2[65536], buf3[65536];
+    static uint8_t dev_buf[32];
     size_t len1, len2, len3;
 
     if (strcmp(argv[1], "eval") == 0) {
-        if (argc != 4) {
-            fprintf(stderr, "usage: ceval eval <hex_code> <hex_msg>\n");
+        if (argc < 4 || argc > 5) {
+            fprintf(stderr, "usage: ceval eval <hex_code> <hex_msg> [hex_device_id]\n");
             return 1;
         }
         if (hex_to_bytes(argv[2], buf1, sizeof(buf1), &len1) != 0 ||
@@ -51,8 +62,16 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
+        device_context_t dctx;
+        const device_context_t *ctx_ptr = NULL;
+        if (argc == 5) {
+            if (parse_device_id(argv[4], &dctx, dev_buf) != 0) return 1;
+            ctx_ptr = &dctx;
+        }
+
         eval_t e;
         eval_init(&e);
+        if (ctx_ptr != NULL) e.ctx = ctx_ptr;
         int ret = eval_with_xmsg(&e, buf1, len1, buf2, len2);
 
         if (ret != 0) {
@@ -67,8 +86,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (strcmp(argv[1], "m001") == 0) {
-        if (argc != 5) {
-            fprintf(stderr, "usage: ceval m001 <hex_xpubkey> <hex_xsig> <hex_msg>\n");
+        if (argc < 5 || argc > 6) {
+            fprintf(stderr, "usage: ceval m001 <hex_xpubkey> <hex_xsig> <hex_msg> [hex_device_id]\n");
             return 1;
         }
         if (hex_to_bytes(argv[2], buf1, sizeof(buf1), &len1) != 0 ||
@@ -78,7 +97,14 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        int result = run_machine001(buf1, len1, buf2, len2, buf3, len3);
+        device_context_t dctx;
+        const device_context_t *ctx_ptr = NULL;
+        if (argc == 6) {
+            if (parse_device_id(argv[5], &dctx, dev_buf) != 0) return 1;
+            ctx_ptr = &dctx;
+        }
+
+        int result = run_machine001_with_context(buf1, len1, buf2, len2, buf3, len3, ctx_ptr);
         printf("%d\n", result);
         return 0;
     }

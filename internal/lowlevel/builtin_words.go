@@ -50,6 +50,36 @@ func (e *Eval) not() error {
 	return nil
 }
 
+func (e *Eval) equal32() error {
+	a := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		val, err := e.Stack.Pop()
+		if err != nil {
+			return errors.Wrapf(err, "equal32")
+		}
+		a[i] = val
+	}
+	b := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		val, err := e.Stack.Pop()
+		if err != nil {
+			return errors.Wrapf(err, "equal32")
+		}
+		b[i] = val
+	}
+	// constant-time comparison to avoid leaking the device serial via timing
+	diff := byte(0)
+	for i := 0; i < 32; i++ {
+		diff |= a[i] ^ b[i]
+	}
+	if diff == 0 {
+		e.Stack.Push(1)
+	} else {
+		e.Stack.Push(0)
+	}
+	return nil
+}
+
 func (e *Eval) sigverify(xmsg []byte) error {
 	publicKey, err := e.Stack.PopPublicKeyCompressed()
 	if err != nil {
