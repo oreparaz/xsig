@@ -151,7 +151,7 @@ int eval_with_xmsg(eval_t *e, const uint8_t *code, size_t code_len,
             break;
         }
         case OP_DEVICEID: {
-            if (e->ctx == NULL || e->ctx->device_id == NULL || e->ctx->device_id_len != 32) {
+            if (e->ctx == NULL || e->ctx->device_id == NULL) {
                 return -1;
             }
             for (int i = 31; i >= 0; i--) {

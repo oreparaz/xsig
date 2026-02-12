@@ -19,7 +19,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (has_device_id) {
         if (offset + 32 > size) return 0;
         dctx.device_id = data + offset;
-        dctx.device_id_len = 32;
         ctx_ptr = &dctx;
         offset += 32;
     }

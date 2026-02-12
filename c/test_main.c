@@ -8,10 +8,9 @@ static int run_eval_test(const eval_tv_t *tv) {
     eval_t e;
     eval_init(&e);
 
-    if (tv->device_id_len > 0) {
+    if (tv->device_id != NULL) {
         static device_context_t dctx;
         dctx.device_id = tv->device_id;
-        dctx.device_id_len = tv->device_id_len;
         e.ctx = &dctx;
     }
 

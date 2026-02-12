@@ -67,15 +67,16 @@ func (e *Eval) equal32() error {
 		}
 		b[i] = val
 	}
-	equal := byte(0)
+	// constant-time comparison to avoid leaking the device serial via timing
+	diff := byte(0)
 	for i := 0; i < 32; i++ {
-		if a[i] != b[i] {
-			e.Stack.Push(equal)
-			return nil
-		}
+		diff |= a[i] ^ b[i]
 	}
-	equal = 1
-	e.Stack.Push(equal)
+	if diff == 0 {
+		e.Stack.Push(1)
+	} else {
+		e.Stack.Push(0)
+	}
 	return nil
 }
 

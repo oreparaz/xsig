@@ -872,7 +872,7 @@ func main() {
 	fmt.Fprintln(f, "    const uint8_t *msg; size_t msg_len;")
 	fmt.Fprintln(f, "    int expect_error;")
 	fmt.Fprintln(f, "    const uint8_t *expect_stack; size_t expect_stack_len;")
-	fmt.Fprintln(f, "    const uint8_t *device_id; size_t device_id_len;")
+	fmt.Fprintln(f, "    const uint8_t *device_id;")
 	fmt.Fprintln(f, "} eval_tv_t;")
 	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "typedef struct {")
@@ -912,13 +912,11 @@ func main() {
 			stackLen = 0
 		}
 		devRef := "NULL"
-		devLen := 0
 		if len(tv.DeviceID) > 0 {
 			devRef = fmt.Sprintf("et_%d_devid", i)
-			devLen = len(tv.DeviceID)
 		}
-		fmt.Fprintf(f, "    {\"%s\", et_%d_code, %d, et_%d_msg, %d, %d, %s, %d, %s, %d},\n",
-			tv.Name, i, len(tv.Code), i, len(tv.Msg), expectErr, stackRef, stackLen, devRef, devLen)
+		fmt.Fprintf(f, "    {\"%s\", et_%d_code, %d, et_%d_msg, %d, %d, %s, %d, %s},\n",
+			tv.Name, i, len(tv.Code), i, len(tv.Msg), expectErr, stackRef, stackLen, devRef)
 	}
 	fmt.Fprintln(f, "};")
 	fmt.Fprintf(f, "#define NUM_EVAL_TESTS %d\n\n", len(evalTests))

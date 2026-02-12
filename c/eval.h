@@ -16,8 +16,7 @@
 #define OP_DEVICEID       10
 
 typedef struct {
-    const uint8_t *device_id; // 32 bytes or NULL
-    size_t device_id_len;
+    const uint8_t *device_id; // exactly 32 bytes, or NULL if not set
 } device_context_t;
 
 typedef struct {

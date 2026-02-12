@@ -37,7 +37,6 @@ static int parse_device_id(const char *hex, device_context_t *dctx, uint8_t *dev
         return -1;
     }
     dctx->device_id = dev_buf;
-    dctx->device_id_len = 32;
     return 0;
 }
 
